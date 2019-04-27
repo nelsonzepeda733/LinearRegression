@@ -1,0 +1,20 @@
+library(MASS)
+library(AER)
+data(CollegeDistance)
+names(CollegeDistance)
+head(CollegeDistance)
+
+plot(CollegeDistance[c(3,10, 11)])
+cor(CollegeDistance[c(3,10, 11)])
+score <- lm(score ~ distance + tuition, data = CollegeDistance)
+summary(score)
+
+starting.model <- lm(education ~ score + urban + distance + tuition, data = CollegeDistance)
+summary(starting.model)
+
+schoolmod <- lm(education ~ score + tuition + distance + urban, data = CollegeDistance)
+summary(schoolmod)
+
+newdata <- data.frame(score = 52, tuition = .9, distance = .5, urban = 'yes')
+predict(schoolmod, newdata, interval = "predict")
+

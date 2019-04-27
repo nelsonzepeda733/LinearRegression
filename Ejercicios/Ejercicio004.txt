@@ -1,0 +1,112 @@
+require(MASS)
+require(ISLR)
+data("Boston")
+
+/****************************************
+crim: ratio de criminalidad per cápita de cada ciudad.
+zn: Proporción de zonas residenciales con edificaciones de más de 25.000 pies cuadrados.
+indus: proporción de zona industrializada.
+chas: Si hay río en la ciudad (= 1 si hay río; 0 no hay).
+nox: Concentración de óxidos de nitrógeno (partes per 10 millón).
+rm: promedio de habitaciones por vivienda.
+age: Proporción de viviendas ocupadas por el propietario construidas antes de 1940.
+dis: Media ponderada de la distancias a cinco centros de empleo de Boston.
+rad: Índice de accesibilidad a las autopistas radiales.
+tax: Tasa de impuesto a la propiedad en unidades de $10,000.
+ptratio: ratio de alumnos/profesor por ciudad.
+black: 1000(Bk - 0.63)^2 donde Bk es la proporción de gente de color por ciudad.
+lstat: porcentaje de población en condición de pobreza.
+medv: Valor mediano de las casas ocupadas por el dueño en unidades de $1000s.
+****************************************/
+
+require(psych)
+# La variable chas es una variable categórica por lo que se transforma a factor
+Boston$chas <- as.factor(Boston$chas)
+summary(Boston)
+
+plot(Boston$rm)
+
+multi.hist(x = Boston[,1:3], dcol = c("blue","red"), dlty = c("dotted", "solid"),
+           main = "")
+
+
+multi.hist(x = Boston[,5:9], dcol = c("blue","red"), dlty = c("dotted", "solid"),
+           main = "")
+		   
+multi.hist(x = Boston[,10:14], dcol = c("blue","red"),
+           dlty = c("dotted", "solid"), main = "")		   
+
+modelo_simple <- lm(data = Boston, formula = medv ~ lstat)
+
+attach(Boston)
+plot(x = lstat, y = medv, main = "medv vs lstat", pch = 20, col = "grey30")
+abline(modelo_simple, lwd = 3, col = "red")
+
+
+
+modelo_multiple <- lm(formula = medv ~ ., data = Boston)
+
+summary(modelo_multiple)
+
+step(modelo_multiple, direction = "both", trace = 0)
+
+
+modelo_multiple <- lm(formula = medv ~ crim + zn + chas +  nox + rm +  dis +
+                      rad + tax + ptratio + black + lstat, data = Boston)
+summary(modelo_multiple)
+
+---Analizando Correlaciones
+
+require(corrplot)
+corrplot.mixed(corr = cor(Boston[,c("crim", "zn", "nox", "rm", "dis", "rad", 
+                                    "tax", "ptratio", "black", "lstat", "medv")],
+                          method = "pearson"))		   
+
+						  attach(Boston)
+par(mfrow = c(2,2))
+plot(x = tax, y = rad, pch = 20)
+plot(x = tax, y = nox, pch = 20)
+plot(x = dis, y = nox, pch = 20)
+plot(x = medv, y = rm, pch = 20)
+
+par(mfrow = c(1,1))
+
+require(car)
+vif(modelo_multiple)
+--factor de inflación de varianza VIF. (Multicolinealidad)
+--Los indices VIF son bajos o moderados, valores entre 5 y 10 indican posibles problemas y valores mayores o iguales a 10 se consideran muy problemáticos. 
+
+
+--Generando nuevo modelo
+modelo <- lm(medv ~ lstat + age, data = Boston)
+summary(modelo)
+
+
+rango_lstat <- range(Boston$lstat)
+nuevos_valores_lstat <- seq(from = rango_lstat[1], to = rango_lstat[2],
+                            length.out = 20)
+rango_age <- range(Boston$age)
+nuevos_valores_age <- seq(from = rango_age[1], to = rango_age[2],
+                          length.out = 20)
+
+predicciones <- outer(X = nuevos_valores_lstat, Y = nuevos_valores_age, 
+                      FUN = function(lstat, age) {
+                          predict(object = modelo,
+                                  newdata = data.frame(lstat, age))
+                          })
+
+superficie <- persp(x = nuevos_valores_lstat, y = nuevos_valores_age,
+                    z = predicciones,
+                    theta = 20, phi = 5,
+                    col = "lightblue", shade = 0.1,
+                    zlim = range(-10,100),
+                    xlab = "lstat", ylab = "age", zlab = "medv",
+                    ticktype = "detailed",
+                    main = "Predición precio medio ~ lstat y age"
+                  )
+
+observaciones <- trans3d(Boston$lstat, Boston$age, Boston$medv, superficie)
+error <- trans3d(Boston$lstat, Boston$age, fitted(modelo), superficie)
+points(observaciones, col = "red", pch = 16)
+segments(observaciones$x, observaciones$y, error$x, error$y)
+
